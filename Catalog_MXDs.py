@@ -15,7 +15,9 @@ def CRC32_from_file(filename):
 
 #arrMxd = [];
 
-mxdPath = r"H:/"
+mxdPath = r"H:\\"
+#mxdPath = r"H:\James\Rapid Bus"
+
 print mxdPath
 
 for root, dirs, files in os.walk(mxdPath, topdown=False):
@@ -34,75 +36,44 @@ for root, dirs, files in os.walk(mxdPath, topdown=False):
             modified = datetime.datetime.strptime(time.ctime(os.path.getmtime(x)), "%a %b %d %H:%M:%S %Y")
             print modified
 
-            size =  info.st_size
-            print size
-
             crc = CRC32_from_file(x)
             print crc
 
-            mxd = arcpy.mapping.MapDocument(x)
-            #print mxd
-            for df in arcpy.mapping.ListDataFrames(mxd):
-                print df.name
-                for lyrs in arcpy.mapping.ListLayers(mxd, "", df):
-                    if lyrs.isGroupLayer == "True":
-                        print "Skipping Group LYR"
-                    else:
+            size =  info.st_size
+            print size
 
-                        print lyrs
+            cursor.execute("insert into GDB.MXDs(Name, Path, Size, Created, Modified, CRC) values (?, ?, ?, ?, ?, ?)", name, x, size, created, modified, crc)
+            cnxn.commit()
+            cursor.execute("SELECT @@IDENTITY AS ID")
+            rowid = cursor.fetchone()
+            mxdid = rowid.ID
+            print mxdid
 
-##            cursor.execute("insert into MXDs(Name, Path, Size, Created, Modified, CRC) values (?, ?, ?, ?, ?, ?)", name, x, size, created, modified, crc)
-##            cnxn.commit()
+            if size > 2048:
+                mxd = arcpy.mapping.MapDocument(x)
+                #print mxd
+                for df in arcpy.mapping.ListDataFrames(mxd):
+                    print df.name
+                    for lyrs in arcpy.mapping.ListLayers(mxd, "", df):
+                        if hasattr(lyrs, "dataSource"):
+                            print lyrs.name
+                            print lyrs.longName
+                            print lyrs.datasetName
+                            print lyrs.dataSource
+                            lyrtype = "Feature"
 
-            print "-------------------"
+                            cursor.execute("insert into Layers(MXD_Name, MXD_Path, LYR_Name, LYR_Path, MXD_ID, LYR_Type) values (?, ?, ?, ?, ?, ?)", name, x, lyrs.name, lyrs.dataSource, mxdid, lyrtype)
+                            cnxn.commit()
+                        elif hasattr(lyrs, "isGroupLayer"):
+                            print lyrs.name + " is a group layer."
+                            lyrtype = "Group"
+                            cursor.execute("insert into Layers(MXD_Name, MXD_Path, LYR_Name, MXD_ID, LYR_Type) values (?, ?, ?, ?, ?)", name, x, lyrs.name, mxdid, lyrtype)
+                            cnxn.commit()
 
-##            arrMxd.append(x)
+                    print "---------Moving to next Layer----------"
+                print "___------Moving to next MXD-------___"
 
-### Delete any existing rows in table on GISDB1 in Inventory user
-#arcpy.DeleteRows_management(r"ADD PATH TO SDE CONNECTION FILE/DB TABLE YOU WANT TO WRITE TO HERE")
-
-# Create insert cursor for table
-#rows = arcpy.InsertCursor(r"ADD PATH TO SDE CONNECTION FILE/DB TABLE YOU WANT TO WRITE TO HERE")
-
-##for i in arrMxd:
-##    arrRecord = [];
-##    mxd = arcpy.mapping.MapDocument(i)
-##    df = arcpy.mapping.ListDataFrames(mxd)[0]
-##
-##    arrLyrs=arcpy.mapping.ListLayers(mxd, "", df)
-##
-##    print i
-
-##    for x in range(len(arrLyrs)):
-##
-##        try:
-##            ## These are all arcgis layer properties (built-in)
-##            lyrName=arrLyrs[x].name
-##            ## Added REPLACE because some of the path names had % signs in them. Could not see pattern though...
-##            dSource=arrLyrs[x].dataSource.replace(r'%', '')
-##            dName=arrLyrs[x].datasetName.replace(r'%', '')
-##
-##        except:
-##            continue
-##        ## Then this is not a group layer
-##
-##
-##        ## Try to Insert row into table
-##        try:
-##            row = rows.newRow()
-##            row.setValue("name",ServerName)
-##            row.setValue("datasource", dSource)
-##            row.setValue("layername", lyrName)
-##            row.setValue("mxd", i)
-##            row.setValue("table_name",dName)
-##            rows.insertRow(row)
-####              print x
-##
-##            del row
-##        except:
-##            arcpy.AddWarning("Error inserting row: " + dName )
-# Delete cursor and row objects to remove locks on the data
-del rows
+#del rows
 
 
 
