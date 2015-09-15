@@ -1,7 +1,7 @@
 USE [CMTAGISStats]
 GO
 
-/****** Object:  Table [GDB].[MXDs]    Script Date: 8/10/2015 8:02:26 AM ******/
+/****** Object:  Table [GDB].[MXDs]    Script Date: 9/15/2015 6:36:09 AM ******/
 SET ANSI_NULLS ON
 GO
 
