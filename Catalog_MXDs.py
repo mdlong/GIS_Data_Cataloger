@@ -1,10 +1,15 @@
 import os, pyodbc, arcpy, time, binascii
 from os import path
 from arcpy import da
+import sqlite3 as lite
 
-# Set up the SQL Server connection info
-cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=jeeves;DATABASE=CMTAGISStats;Trusted_Connection=yes;')
-cursor = cnxn.cursor()
+### Set up the SQL Server connection info
+##cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=jeeves;DATABASE=CMTAGISStats;Trusted_Connection=yes;')
+##cursor = cnxn.cursor()
+
+# Set up a connection to a sqlite database
+cnxn = lite.connect(r"G:\Internal\Tools\Python\GIS_Data_Cataloger\DataCatalog.sqlite")
+cur = cnxn.cursor()
 
 # Define a function to create a CRC for the file
 # http://www.matteomattei.com/how-to-calculate-the-crc32-of-a-file-in-python/
@@ -42,12 +47,16 @@ for root, dirs, files in os.walk(mxdPath, topdown=False):
             size =  info.st_size
             print size
 
-            cursor.execute("insert into GDB.MXDs(Name, Path, Size, Created, Modified, CRC) values (?, ?, ?, ?, ?, ?)", name, x, size, created, modified, crc)
+
+            cur.execute ("insert into MXDs VALUES (NULL, ?, ?, ?, ?, ?, ?)",  (name, x, size, created, modified, crc))
             cnxn.commit()
-            cursor.execute("SELECT @@IDENTITY AS ID")
-            rowid = cursor.fetchone()
-            mxdid = rowid.ID
-            print mxdid
+            #cur.execute("SELECT @@IDENTITY AS ID")
+            cur.execute("select seq from sqlite_sequence where name='MXDs'")
+            for row in cur:
+
+                #rowid = cur.fetchone()
+                mxdid = row[0]
+                print mxdid
 
             if size > 2048:
                 mxd = arcpy.mapping.MapDocument(x)
@@ -62,18 +71,15 @@ for root, dirs, files in os.walk(mxdPath, topdown=False):
                             print lyrs.dataSource
                             lyrtype = "Feature"
 
-                            cursor.execute("insert into Layers(MXD_Name, MXD_Path, LYR_Name, LYR_Path, MXD_ID, LYR_Type) values (?, ?, ?, ?, ?, ?)", name, x, lyrs.name, lyrs.dataSource, mxdid, lyrtype)
+                            cur.execute("insert into Layers VALUES (NULL, ?, ?, ?, ?, ?, ?)", (mxdid, name, x, lyrs.name, lyrs.dataSource, lyrtype))
                             cnxn.commit()
-                        elif hasattr(lyrs, "isGroupLayer"):
-                            print lyrs.name + " is a group layer."
-                            lyrtype = "Group"
-                            cursor.execute("insert into Layers(MXD_Name, MXD_Path, LYR_Name, MXD_ID, LYR_Type) values (?, ?, ?, ?, ?)", name, x, lyrs.name, mxdid, lyrtype)
-                            cnxn.commit()
-
-                    print "---------Moving to next Layer----------"
-                print "___------Moving to next MXD-------___"
+##                        elif hasattr(lyrs, "isGroupLayer"):
+##                            print lyrs.name + " is a group layer."
+##                            lyrtype = "Group"
+##                            cursor.execute("insert into Layers(MXD_Name, MXD_Path, LYR_Name, MXD_ID, LYR_Type) values (?, ?, ?, ?, ?)", name, x, lyrs.name, mxdid, lyrtype)
+##                            cnxn.commit()
+##
+##                    print "---------Moving to next Layer----------"
+##                print "___------Moving to next MXD-------___"
 
 #del rows
-
-
-
