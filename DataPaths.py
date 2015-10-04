@@ -10,18 +10,20 @@
 #-------------------------------------------------------------------------------
 #!/usr/bin/env python
 
-import os, pyodbc, arcpy, time, binascii
+import os, arcpy, time, binascii
 from os import path
 from arcpy import da
+import sqlite3 as lite
 
-# Set up the SQL Server connection info
-cnxn = pyodbc.connect('DRIVER={SQL Server};SERVER=jeeves;DATABASE=CMTAGISStats;Trusted_Connection=yes;')
-cursor = cnxn.cursor()
+# Set up a connection to a sqlite database
+cnxn = lite.connect(r"G:\Internal\Tools\Python\GIS_Data_Cataloger\DataCatalog.sqlite")
+cur = cnxn.cursor()
 
 
 
 # Truncate the table before running the script.
-cursor.execute("truncate table [GDB].[DataFiles]")
+cur.execute("DELETE FROM Data;")
+cur.execute("DELETE FROM sqlite_sequence;")
 
 # Define a function to create a CRC for the file
 # http://www.matteomattei.com/how-to-calculate-the-crc32-of-a-file-in-python/
@@ -31,6 +33,8 @@ def CRC32_from_file(filename):
     return "%08X" % buf
 
 workspace = r"H:/"
+#workspace = r"Z:\RAID\GIS_Stuff\GIS_Data"
+
 
 try:
     walk = arcpy.da.Walk(workspace, datatype="Any", type="All")
@@ -66,9 +70,10 @@ try:
 
 
                 # Write the values into the database
-                cursor.execute("insert into GDB.DataFiles(Name, Path, Type, Ext, CRC, Size, Created, Modified) values (?, ?, ?, ?, ?, ?, ?, ?)", name, path, type, ext, crc, size, created, modified)
+                cur.execute("insert into Data VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)", (name, path, type, ext, size, created, modified, crc))
                 cnxn.commit()
-
+##                cur.execute ("insert into MXDs VALUES (NULL, ?, ?, ?, ?, ?, ?)",  (name, x, size, created, modified, crc))
+##                cnxn.commit()
             elif '.gdb' in dirpath:
                 print "GDB...will do stuff later"
                 break
@@ -116,8 +121,8 @@ try:
     ##                for child in desc.children:
     ##                print "\t%s = %s" % (child.name, child.dataType)
 
-            cursor.execute("insert into GDB.DataFiles(Name, Path, Type, Ext, CRC, Size, Created, Modified) values (?, ?, ?, ?, ?, ?, ?, ?)", name, path, type, ext, crc, size, created, modified)
-            cnxn.commit()
+                cur.execute("insert into Data VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)", (name, path, type, ext, size, created, modified, crc))
+                cnxn.commit()
 
             print "-------------------"
 
